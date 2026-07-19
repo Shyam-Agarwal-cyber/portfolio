@@ -8,8 +8,8 @@ export const site = {
   title: 'Shyam Agarwal — Backend Software Engineer',
   description:
     'Backend engineer specializing in distributed systems, event streaming, and performance. I own Kafka consumers processing 9M+ events/day and cut production p99 latency from 4s to 500ms.',
-  // Set this to your real domain (e.g. https://shyamagarwal.dev) once deployed.
-  url: 'https://shyam-agarwal.vercel.app',
+  // Production domain — update if you add a custom domain later.
+  url: 'https://shyam-agarwal-portfolio.vercel.app',
   locale: 'en_US',
   email: 'shyam5320235@gmail.com',
   phone: '+917906642731',
