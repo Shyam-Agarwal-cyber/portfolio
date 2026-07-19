@@ -2,16 +2,18 @@
  * Request-journey simulation engine.
  *
  * Models the two decoupled ingestion paths of the dialer platform:
- *   1. Synchronous REST — the platform UI sends call-create (ingest a row),
- *      call-update (disposition, committed amount), and voicebot campaign
- *      creation (guarded by a Redis distributed lock) requests to the API.
- *   2. Asynchronous events — the in-house dialer produces call webhooks to
- *      Kafka; a separate consumer processes that topic (9M+ events/day), made
- *      idempotent by a Postgres unique constraint (ON CONFLICT).
+ *   1. Synchronous REST — the platform UI sends call-create / call-update
+ *      (Postgres writes, no cache) and voicebot campaign creation (guarded by a
+ *      Redis distributed lock) to FastAPI. Cached reads (agent availability) go
+ *      through Redis, falling back to Postgres and writing the result back.
+ *   2. Asynchronous events — the in-house dialer produces call webhooks to a
+ *      Kafka topic; a Kafka consumer processes them (9M+ events/day), made
+ *      idempotent by a Postgres unique constraint (ON CONFLICT). Row-level lock
+ *      contention shows up here, on the consumer's Postgres writes.
  *
- * FastAPI (REST) and the Webhook Consumer (async) are the orchestrators: the
- * data stores never talk to each other, so every store call returns to its
- * caller before the next one begins (e.g. FastAPI → Postgres → FastAPI → Redis).
+ * FastAPI (REST) and the Kafka consumer (async) are the orchestrators: the data
+ * stores never talk to each other, so every store call returns to its caller
+ * before the next one begins (e.g. FastAPI → Postgres → FastAPI → Redis).
  *
  * Pure and presentation-agnostic: components read `NODES` for layout and
  * `buildScenario()` for a deterministic-per-run list of animation steps.
@@ -66,41 +68,41 @@ export const NODES: Record<NodeId, ServiceNodeMeta> = {
     id: 'fastapi',
     name: 'FastAPI',
     purpose: 'Async REST API',
-    why: 'Orchestrates call-create, call-update, and campaign creation. Every DB/cache call is made from here and returns here — the stores never call each other. Why async: the work is I/O-bound, so one worker holds thousands of concurrent awaits.',
+    why: 'Orchestrates call-create, call-update, and campaign creation. Every DB/cache call is made from here and returns here — the stores never call each other. Voicebot campaign creation takes a Redis distributed lock so concurrent creates wait. Why async: the work is I/O-bound.',
     icon: 'server',
   },
   redis: {
     id: 'redis',
     name: 'Redis',
     purpose: 'Cache + distributed locks',
-    why: 'Sub-millisecond reads for hot data (agent availability) and distributed locks — e.g. serializing voicebot campaign creation so concurrent requests wait for the lock instead of double-creating. Postgres stays authoritative.',
+    why: 'Sub-millisecond cached reads (agent availability): on a miss FastAPI reads Postgres and writes the result back here. Also holds distributed locks — e.g. serializing voicebot campaign creation. Postgres stays authoritative.',
     icon: 'zap',
   },
   postgres: {
     id: 'postgres',
     name: 'PostgreSQL',
     purpose: 'Call records · source of truth',
-    why: 'Stores every call and its updates (disposition, committed amount), written by both FastAPI (REST) and the consumer (webhooks). Webhook idempotency is enforced here with a unique constraint (ON CONFLICT); the hot updated row is where lock contention shows up.',
+    why: 'Stores every call and its updates (disposition, committed amount), written by both FastAPI (REST) and the Kafka consumer (webhooks). Webhook idempotency is enforced with a unique constraint (ON CONFLICT); the consumer’s hot updated row is where lock contention shows up.',
     icon: 'database',
   },
   dialer: {
     id: 'dialer',
     name: 'In-house Dialer',
     purpose: 'Live calls · webhooks',
-    why: 'Our in-house dialer. It streams live call state to the platform UI over a socket, and produces a webhook to Kafka for every call event — decoupled ingestion that never touches the REST API.',
+    why: 'Our in-house dialer. It streams live call state to the platform UI over a socket, and produces a webhook to the Kafka topic for every call event — decoupled ingestion that never touches the REST API.',
     icon: 'phone',
   },
   kafka: {
     id: 'kafka',
-    name: 'Kafka',
-    purpose: 'Dialer webhook topic',
-    why: 'The dialer produces call webhooks here. A durable, replayable log lets a separate consumer process 9M+ events/day independently of the REST API.',
+    name: 'Kafka Topic',
+    purpose: 'dialer.webhooks',
+    why: 'The dialer produces call webhooks to this topic. A durable, replayable log lets a separate consumer process 9M+ events/day independently of the REST API.',
     icon: 'radio',
   },
   consumer: {
     id: 'consumer',
-    name: 'Webhook Consumer',
-    purpose: 'Idempotent Kafka consumer',
+    name: 'Kafka Consumer',
+    purpose: 'Idempotent event processor',
     why: 'My consumer for the dialer webhook topic. Exactly-once via a Postgres unique constraint (idempotent upsert); it writes to Postgres, then fans out to recording-sync, webhook-forwarding, and borrower-type updates.',
     icon: 'cpu',
   },
@@ -229,6 +231,7 @@ function restPrefix(method: string, path: string, body?: string): Step[] {
 }
 
 const BUILDERS: Record<ScenarioId, () => Step[]> = {
+  // Pure DB write — no cache.
   callCreate: () => [
     ...restPrefix('POST', '/api/v2/calls', '{call_uuid, campaign_id}'),
     {
@@ -245,25 +248,7 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       phase: 'request',
       level: 'INFO',
       service: 'fastapi',
-      message: 'inserted id=88214 → warm cache',
-      duration: T.HOP,
-      patch: { latencyAdd: 1 },
-    },
-    {
-      node: 'redis',
-      phase: 'request',
-      level: 'INFO',
-      service: 'redis',
-      message: 'SETEX call:88214 ttl=300s',
-      duration: T.HOP,
-      patch: { latencyAdd: 3 },
-    },
-    {
-      node: 'fastapi',
-      phase: 'request',
-      level: 'INFO',
-      service: 'fastapi',
-      message: 'serialize · 201 Created',
+      message: 'inserted id=88214 · serialize · 201 Created',
       duration: T.HOP,
       patch: { latencyAdd: 2 },
     },
@@ -278,6 +263,7 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
     },
   ],
 
+  // Pure DB write — no cache.
   callUpdate: () => [
     ...restPrefix('PATCH', '/api/v2/calls/88214', '{disposition, committed_amount}'),
     {
@@ -294,25 +280,7 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       phase: 'request',
       level: 'INFO',
       service: 'fastapi',
-      message: 'updated · disposition=PTP · committed=₹15,000 → invalidate cache',
-      duration: T.HOP,
-      patch: { latencyAdd: 1 },
-    },
-    {
-      node: 'redis',
-      phase: 'request',
-      level: 'INFO',
-      service: 'redis',
-      message: 'DEL call:88214 (invalidate stale cache)',
-      duration: T.HOP,
-      patch: { latencyAdd: 2 },
-    },
-    {
-      node: 'fastapi',
-      phase: 'request',
-      level: 'INFO',
-      service: 'fastapi',
-      message: 'serialize · 200 OK',
+      message: 'updated · disposition=PTP · committed=₹15,000 · serialize · 200',
       duration: T.HOP,
       patch: { latencyAdd: 2 },
     },
@@ -327,6 +295,7 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
     },
   ],
 
+  // FastAPI takes a Redis distributed lock around the campaign-creation workflow.
   campaignLock: () => [
     ...restPrefix('POST', '/api/v2/campaigns', '{type: voicebot}'),
     {
@@ -428,6 +397,7 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
     },
   ],
 
+  // Miss → read Postgres → write result back to Redis.
   cacheMiss: () => [
     ...restPrefix('GET', '/api/v2/agents/availability', '?campaign=77'),
     {
@@ -461,9 +431,26 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       phase: 'request',
       level: 'INFO',
       service: 'fastapi',
-      message: 'warm cache (SETEX 60s) · serialize',
+      message: 'got 42 rows → write to cache',
+      duration: T.HOP,
+    },
+    {
+      node: 'redis',
+      phase: 'request',
+      level: 'INFO',
+      service: 'redis',
+      message: 'SETEX slots:campaign:77 ttl=60s (cache filled)',
       duration: T.HOP,
       patch: { latencyAdd: 3 },
+    },
+    {
+      node: 'fastapi',
+      phase: 'request',
+      level: 'INFO',
+      service: 'fastapi',
+      message: 'serialize · 200 OK',
+      duration: T.HOP,
+      patch: { latencyAdd: 2 },
     },
     {
       node: 'ui',
@@ -603,49 +590,68 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
     },
   ],
 
+  // Row-level lock contention happens on the CONSUMER's Postgres write.
   lockContention: () => [
-    ...restPrefix('PATCH', '/api/v2/calls/88214', '{disposition, committed_amount}'),
+    {
+      node: 'dialer',
+      phase: 'async',
+      level: 'INFO',
+      service: 'dialer',
+      message: 'produce call.webhook (cycle-end) → dialer.webhooks p3',
+      duration: T.JUMP,
+      patch: { consumer: 'consuming' },
+    },
+    {
+      node: 'kafka',
+      phase: 'async',
+      level: 'INFO',
+      service: 'kafka',
+      message: 'append offset 5,142,905 · partition 3',
+      duration: T.HOP,
+      patch: { consumerLag: 1 },
+    },
+    {
+      node: 'consumer',
+      phase: 'async',
+      level: 'INFO',
+      service: 'consumer',
+      message: 'poll batch · updating campaign_instances',
+      duration: T.HOP,
+    },
     {
       node: 'postgres',
-      phase: 'request',
+      phase: 'async',
       level: 'WARN',
       service: 'postgres',
-      message: 'UPDATE calls … WHERE id=88214 · waiting for row lock',
+      message: 'UPDATE campaign_instances … · waiting for row lock (hot row)',
       duration: T.LOCK,
-      patch: { incDbQueries: 1, latencyAdd: 612 },
+      patch: { incDbQueries: 1 },
       banner: {
         level: 'warn',
-        text: 'Row-level lock contention: campaign_instances updates were batched with other writes, creating a hot row under concurrency. Fix: decouple that update from the bulk batch.',
+        text: 'Row-level lock contention: campaign_instances updates were batched with other writes in the consumer, creating a hot row under concurrency. Fix: decouple that update from the bulk batch — throughput restored same day.',
       },
     },
     {
       node: 'postgres',
-      phase: 'request',
+      phase: 'async',
       level: 'INFO',
       service: 'postgres',
-      message: 'lock acquired · 1 row updated · 612ms',
+      message: 'lock acquired · rows updated · 612ms',
       duration: T.THINK,
     },
     {
-      node: 'fastapi',
-      phase: 'request',
+      node: 'consumer',
+      phase: 'async',
       level: 'WARN',
-      service: 'fastapi',
-      message: 'serialize · 200 (degraded: lock wait)',
-      duration: T.HOP,
-      banner: null,
-    },
-    {
-      node: 'ui',
-      phase: 'request',
-      level: 'WARN',
-      service: 'ui',
-      message: '200 OK · {lat}ms',
+      service: 'consumer',
+      message: 'batch processed · 612ms · commit offset',
       duration: T.JUMP,
+      patch: { consumer: 'idle', consumerLag: 0 },
       outcome: 'degraded',
     },
   ],
 
+  // Miss → read Postgres (slow) → write result back to Redis.
   slowQuery: () => [
     ...restPrefix('GET', '/api/v2/agents/availability', '?campaign=77'),
     {
@@ -683,10 +689,26 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       phase: 'request',
       level: 'INFO',
       service: 'fastapi',
-      message: 'warm cache · serialize (slow)',
+      message: 'got rows → write to cache',
+      duration: T.HOP,
+      banner: null,
+    },
+    {
+      node: 'redis',
+      phase: 'request',
+      level: 'INFO',
+      service: 'redis',
+      message: 'SETEX slots:campaign:77 ttl=60s (protects the next request)',
       duration: T.HOP,
       patch: { latencyAdd: 3 },
-      banner: null,
+    },
+    {
+      node: 'fastapi',
+      phase: 'request',
+      level: 'INFO',
+      service: 'fastapi',
+      message: 'serialize · 200 OK',
+      duration: T.HOP,
     },
     {
       node: 'ui',
@@ -808,6 +830,7 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
     },
   ],
 
+  // Cache offline → fall back to Postgres (no write-back possible).
   redisDown: () => [
     ...restPrefix('GET', '/api/v2/agents/availability', '?campaign=77'),
     {
@@ -846,7 +869,7 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       phase: 'request',
       level: 'WARN',
       service: 'fastapi',
-      message: 'serialize · degraded (cache offline)',
+      message: 'serialize · degraded (cache offline, no write-back)',
       duration: T.HOP,
     },
     {
