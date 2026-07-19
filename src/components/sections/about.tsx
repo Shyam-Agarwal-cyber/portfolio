@@ -1,5 +1,7 @@
+import Image from 'next/image';
 import { Reveal } from '@/components/ui/reveal';
 import { SectionHeader } from '@/components/ui/section-header';
+import { site } from '@/lib/site';
 
 const facts = [
   { k: 'Role', v: 'Backend Software Engineer' },
@@ -37,7 +39,31 @@ export function About() {
             </p>
           </Reveal>
 
-          <Reveal delay={0.1}>
+          <Reveal delay={0.1} className="space-y-5">
+            <div className="card-hairline relative overflow-hidden">
+              <div className="relative aspect-[4/5] w-full">
+                <Image
+                  src="/Profile.png"
+                  alt={`${site.name}, ${site.role}`}
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 380px"
+                  className="object-cover object-top"
+                />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-surface via-surface/20 to-transparent" />
+                <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/5" />
+              </div>
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 p-4">
+                <div>
+                  <div className="text-sm font-semibold text-fg">{site.name}</div>
+                  <div className="font-mono text-xs text-accent">{site.role}</div>
+                </div>
+                <span className="flex items-center gap-1.5 font-mono text-[10px] text-fg-muted">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Noida, IN
+                </span>
+              </div>
+            </div>
+
             <dl className="card-hairline divide-y divide-border">
               {facts.map((f) => (
                 <div key={f.k} className="flex items-baseline justify-between gap-4 px-5 py-3.5">
