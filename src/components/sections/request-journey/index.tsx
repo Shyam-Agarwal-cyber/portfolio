@@ -48,9 +48,7 @@ export function RequestJourney() {
                 <span className="font-mono text-xs uppercase tracking-[0.18em] text-fg-secondary">
                   Architecture
                 </span>
-                <span className="font-mono text-[10px] text-fg-muted">
-                  {sim.lastScenario ? `last: ${sim.lastScenario}` : 'POST /api/v2/calls'}
-                </span>
+                <span className="font-mono text-[10px] text-fg-muted">POST /api/v2/calls</span>
               </div>
 
               <AnimatePresence>

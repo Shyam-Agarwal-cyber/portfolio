@@ -15,18 +15,19 @@ type ArchitectureProps = {
   stepDuration: number;
 };
 
-/** Node positions as percentages of the graph canvas. Two ingress lanes
- *  (UI top, Dialer bottom) converge on the shared data layer on the right. */
+/** Node positions as percentages of the graph canvas. Two mirrored ingress
+ *  lanes (UI top, Dialer bottom) both connect to the shared data layer —
+ *  Redis + PostgreSQL — centered on the vertical axis, with fan-out on the right. */
 const POS: Record<NodeId, { x: number; y: number }> = {
-  ui: { x: 9, y: 18 },
-  lb: { x: 30, y: 18 },
-  fastapi: { x: 51, y: 18 },
-  dialer: { x: 9, y: 82 },
-  kafka: { x: 30, y: 82 },
-  consumer: { x: 51, y: 82 },
-  redis: { x: 73, y: 22 },
-  postgres: { x: 89, y: 50 },
-  downstream: { x: 73, y: 78 },
+  ui: { x: 10, y: 20 },
+  lb: { x: 30, y: 20 },
+  fastapi: { x: 50, y: 20 },
+  dialer: { x: 10, y: 80 },
+  kafka: { x: 30, y: 80 },
+  consumer: { x: 50, y: 80 },
+  redis: { x: 72, y: 34 },
+  postgres: { x: 72, y: 66 },
+  downstream: { x: 91, y: 50 },
 };
 
 const EDGES: ReadonlyArray<readonly [NodeId, NodeId]> = [
@@ -36,8 +37,9 @@ const EDGES: ReadonlyArray<readonly [NodeId, NodeId]> = [
   ['kafka', 'consumer'],
   ['fastapi', 'redis'],
   ['fastapi', 'postgres'],
+  ['consumer', 'redis'],
   ['consumer', 'postgres'],
-  ['consumer', 'downstream'],
+  ['postgres', 'downstream'],
 ];
 
 type Point = { x: number; y: number };
