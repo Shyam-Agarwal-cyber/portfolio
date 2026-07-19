@@ -29,7 +29,7 @@ export function RequestJourney() {
   }, [sim, scenario]);
 
   const BannerIcon = sim.banner ? BANNER_ICON[sim.banner.level] : null;
-  const entry = SCENARIOS.find((s) => s.id === scenario)?.entry ?? 'POST /api/v2/calls';
+  const scenarioName = SCENARIOS.find((s) => s.id === scenario)?.label ?? 'Call Create';
 
   return (
     <section id="request-journey" className="scroll-mt-24 border-t border-border py-24 sm:py-28">
@@ -49,7 +49,7 @@ export function RequestJourney() {
                 <span className="font-mono text-xs uppercase tracking-[0.18em] text-fg-secondary">
                   Architecture
                 </span>
-                <span className="font-mono text-[10px] text-fg-muted">{entry}</span>
+                <span className="font-mono text-[10px] text-fg-muted">{scenarioName}</span>
               </div>
 
               <AnimatePresence>

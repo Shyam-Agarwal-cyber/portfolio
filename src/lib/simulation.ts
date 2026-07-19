@@ -178,18 +178,18 @@ export type Step = {
 };
 
 export const SCENARIOS = [
-  { id: 'callCreate', label: 'Call Create', entry: 'POST /api/v2/calls' },
-  { id: 'callUpdate', label: 'Call Update', entry: 'PATCH /api/v2/calls/88214' },
-  { id: 'campaignLock', label: 'Voicebot Campaign', entry: 'POST /api/v2/campaigns' },
-  { id: 'availabilityHit', label: 'Agent Availability', entry: 'GET /api/v2/agents/availability' },
-  { id: 'cacheMiss', label: 'Cache Miss', entry: 'GET /api/v2/agents/availability' },
-  { id: 'webhookEvent', label: 'Webhook Event', entry: 'topic: dialer.webhooks' },
-  { id: 'duplicateWebhook', label: 'Duplicate Webhook', entry: 'topic: dialer.webhooks (dup)' },
-  { id: 'lockContention', label: 'Lock Contention', entry: 'topic: dialer.webhooks' },
-  { id: 'slowQuery', label: 'Slow Query', entry: 'GET /api/v2/agents/availability' },
-  { id: 'consumerLag', label: 'Consumer Lag', entry: 'topic: dialer.webhooks (burst)' },
-  { id: 'retryDlq', label: 'Retry → DLQ', entry: 'topic: dialer.webhooks' },
-  { id: 'redisDown', label: 'Redis Down', entry: 'GET /api/v2/agents/availability' },
+  { id: 'callCreate', label: 'Call Create' },
+  { id: 'callUpdate', label: 'Call Update' },
+  { id: 'campaignLock', label: 'Voicebot Campaign' },
+  { id: 'availabilityHit', label: 'Agent Availability' },
+  { id: 'cacheMiss', label: 'Cache Miss' },
+  { id: 'webhookEvent', label: 'Webhook Event' },
+  { id: 'duplicateWebhook', label: 'Duplicate Webhook' },
+  { id: 'lockContention', label: 'Lock Contention' },
+  { id: 'slowQuery', label: 'Slow Query' },
+  { id: 'consumerLag', label: 'Consumer Lag' },
+  { id: 'retryDlq', label: 'Retry → DLQ' },
+  { id: 'redisDown', label: 'Redis Down' },
 ] as const;
 
 export type ScenarioId = (typeof SCENARIOS)[number]['id'];
