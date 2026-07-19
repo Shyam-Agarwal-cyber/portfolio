@@ -51,7 +51,7 @@ export const NODES: Record<NodeId, ServiceNodeMeta> = {
     id: 'ui',
     name: 'Platform UI',
     purpose: 'ReactJS · agents & admins',
-    why: 'The dialer platform UI. Agents and admins use it to create a call record, update it with disposition and committed amount, and create voicebot campaigns — it drives the synchronous REST path.',
+    why: 'The dialer platform UI. Agents and admins use it to create a call record, update it with disposition and committed amount, and create voicebot campaigns — driving the REST path. It also holds a live socket to the in-house dialer for real-time call state.',
     icon: 'monitor',
   },
   lb: {
@@ -84,9 +84,9 @@ export const NODES: Record<NodeId, ServiceNodeMeta> = {
   },
   dialer: {
     id: 'dialer',
-    name: 'Dialer',
-    purpose: 'Produces call webhooks',
-    why: 'A separate upstream from the UI. For every call event the dialer produces a webhook to Kafka — decoupled ingestion that never touches the REST API.',
+    name: 'In-house Dialer',
+    purpose: 'Live calls · webhooks',
+    why: 'Our in-house dialer. It streams live call state to the platform UI over a socket, and produces a webhook to Kafka for every call event — decoupled ingestion that never touches the REST API.',
     icon: 'phone',
   },
   kafka: {
@@ -476,6 +476,14 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       patch: { incDbQueries: 1 },
     },
     {
+      node: 'consumer',
+      phase: 'async',
+      level: 'INFO',
+      service: 'consumer',
+      message: 'call updated · publishing fan-out events',
+      duration: T.DB,
+    },
+    {
       node: 'downstream',
       phase: 'async',
       level: 'INFO',
@@ -490,7 +498,7 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       level: 'INFO',
       service: 'consumer',
       message: 'commit offset 5,142,880 · exactly-once ✓',
-      duration: T.HOP,
+      duration: T.JUMP,
       patch: { consumer: 'idle' },
       outcome: 'ok',
     },

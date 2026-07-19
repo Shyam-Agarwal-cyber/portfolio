@@ -25,9 +25,9 @@ const POS: Record<NodeId, { x: number; y: number }> = {
   dialer: { x: 10, y: 80 },
   kafka: { x: 30, y: 80 },
   consumer: { x: 50, y: 80 },
-  redis: { x: 72, y: 34 },
-  postgres: { x: 72, y: 66 },
-  downstream: { x: 91, y: 50 },
+  redis: { x: 71, y: 34 },
+  postgres: { x: 71, y: 66 },
+  downstream: { x: 91, y: 80 },
 };
 
 const EDGES: ReadonlyArray<readonly [NodeId, NodeId]> = [
@@ -39,8 +39,11 @@ const EDGES: ReadonlyArray<readonly [NodeId, NodeId]> = [
   ['fastapi', 'postgres'],
   ['consumer', 'redis'],
   ['consumer', 'postgres'],
-  ['postgres', 'downstream'],
+  ['consumer', 'downstream'],
 ];
+
+/** Non-flow structural links (rendered dashed, no arrow, never a packet path). */
+const SOCKET_EDGES: ReadonlyArray<readonly [NodeId, NodeId]> = [['ui', 'dialer']];
 
 type Point = { x: number; y: number };
 
@@ -113,7 +116,7 @@ export function Architecture({
   return (
     <div>
       <div className="overflow-x-auto pb-1">
-        <div ref={graphRef} className="relative h-[360px] min-w-[560px] sm:h-[400px]">
+        <div ref={graphRef} className="relative h-[360px] min-w-[600px] sm:h-[400px]">
           {/* Edges */}
           {measured ? (
             <svg
@@ -136,6 +139,42 @@ export function Architecture({
                   <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(240 5% 35%)" />
                 </marker>
               </defs>
+              {SOCKET_EDGES.map(([f, t]) => {
+                const p1 = trim(center(t), center(f), 34);
+                const p2 = trim(center(f), center(t), 34);
+                const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+                return (
+                  <g key={`sock-${f}-${t}`}>
+                    <line
+                      x1={p1.x}
+                      y1={p1.y}
+                      x2={p2.x}
+                      y2={p2.y}
+                      stroke="hsl(240 5% 26%)"
+                      strokeWidth={1.25}
+                      strokeDasharray="2 5"
+                    />
+                    <rect
+                      x={mid.x - 22}
+                      y={mid.y - 8}
+                      width={44}
+                      height={16}
+                      rx={4}
+                      fill="hsl(240 6% 4%)"
+                    />
+                    <text
+                      x={mid.x}
+                      y={mid.y + 3.5}
+                      textAnchor="middle"
+                      fontSize="9"
+                      fontFamily="var(--font-mono), monospace"
+                      fill="hsl(240 5% 45%)"
+                    >
+                      socket
+                    </text>
+                  </g>
+                );
+              })}
               {EDGES.map(([f, t]) => {
                 const cf = center(f);
                 const ct = center(t);
