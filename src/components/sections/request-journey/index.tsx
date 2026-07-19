@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, Info, XOctagon } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Reveal } from '@/components/ui/reveal';
-import type { BannerLevel, ScenarioId } from '@/lib/simulation';
+import { SCENARIOS, type BannerLevel, type ScenarioId } from '@/lib/simulation';
 import { cn } from '@/lib/utils';
 import { Architecture } from './architecture';
 import { Controls } from './controls';
@@ -29,6 +29,7 @@ export function RequestJourney() {
   }, [sim, scenario]);
 
   const BannerIcon = sim.banner ? BANNER_ICON[sim.banner.level] : null;
+  const entry = SCENARIOS.find((s) => s.id === scenario)?.entry ?? 'POST /api/v2/calls';
 
   return (
     <section id="request-journey" className="scroll-mt-24 border-t border-border py-24 sm:py-28">
@@ -48,7 +49,7 @@ export function RequestJourney() {
                 <span className="font-mono text-xs uppercase tracking-[0.18em] text-fg-secondary">
                   Architecture
                 </span>
-                <span className="font-mono text-[10px] text-fg-muted">POST /api/v2/calls</span>
+                <span className="font-mono text-[10px] text-fg-muted">{entry}</span>
               </div>
 
               <AnimatePresence>
