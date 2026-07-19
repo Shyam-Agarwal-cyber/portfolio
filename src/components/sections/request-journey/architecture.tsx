@@ -15,7 +15,40 @@ type ArchitectureProps = {
   stepDuration: number;
 };
 
-const RAIL_X = 15; // px, center of the left rail
+/** Node positions as percentages of the graph canvas. Two ingress lanes
+ *  (UI top, Dialer bottom) converge on the shared data layer on the right. */
+const POS: Record<NodeId, { x: number; y: number }> = {
+  ui: { x: 9, y: 18 },
+  lb: { x: 30, y: 18 },
+  fastapi: { x: 51, y: 18 },
+  dialer: { x: 9, y: 82 },
+  kafka: { x: 30, y: 82 },
+  consumer: { x: 51, y: 82 },
+  redis: { x: 73, y: 22 },
+  postgres: { x: 89, y: 50 },
+  downstream: { x: 73, y: 78 },
+};
+
+const EDGES: ReadonlyArray<readonly [NodeId, NodeId]> = [
+  ['ui', 'lb'],
+  ['lb', 'fastapi'],
+  ['dialer', 'kafka'],
+  ['kafka', 'consumer'],
+  ['fastapi', 'redis'],
+  ['fastapi', 'postgres'],
+  ['consumer', 'postgres'],
+  ['consumer', 'downstream'],
+];
+
+type Point = { x: number; y: number };
+
+/** Pull an endpoint back toward its source by `pad` px so it clears the card. */
+function trim(from: Point, to: Point, pad: number): Point {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy) || 1;
+  return { x: to.x - (dx / len) * pad, y: to.y - (dy / len) * pad };
+}
 
 export function Architecture({
   statuses,
@@ -24,124 +57,184 @@ export function Architecture({
   running,
   stepDuration,
 }: ArchitectureProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const nodeEls = useRef(new Map<NodeId, HTMLDivElement>());
-  const [centers, setCenters] = useState<Partial<Record<NodeId, number>>>({});
+  const graphRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const [hovered, setHovered] = useState<NodeId | null>(null);
   const reduce = useReducedMotion();
 
   const measure = useCallback(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const top = container.getBoundingClientRect().top;
-    const next: Partial<Record<NodeId, number>> = {};
-    for (const id of NODE_IDS) {
-      const el = nodeEls.current.get(id);
-      if (el) {
-        const r = el.getBoundingClientRect();
-        next[id] = r.top - top + r.height / 2;
-      }
-    }
-    setCenters(next);
+    const el = graphRef.current;
+    if (el) setSize({ w: el.clientWidth, h: el.clientHeight });
   }, []);
 
   useLayoutEffect(() => {
     measure();
-    const container = containerRef.current;
+    const el = graphRef.current;
     const ro = new ResizeObserver(measure);
-    if (container) ro.observe(container);
-    window.addEventListener('resize', measure);
-    const t = window.setTimeout(measure, 300); // catch late font/layout shifts
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', measure);
-      window.clearTimeout(t);
-    };
+    if (el) ro.observe(el);
+    return () => ro.disconnect();
   }, [measure]);
 
-  const values = Object.values(centers).filter((v): v is number => typeof v === 'number');
-  const firstY = values.length ? Math.min(...values) : 0;
-  const lastY = values.length ? Math.max(...values) : 0;
-  const packetY = activeNode ? (centers[activeNode] ?? firstY) : firstY;
-  const measured = values.length === NODE_IDS.length;
-  const showPacket = measured && activeNode !== null;
+  const center = useCallback(
+    (id: NodeId): Point => ({ x: (POS[id].x / 100) * size.w, y: (POS[id].y / 100) * size.h }),
+    [size],
+  );
+
+  const measured = size.w > 0;
   const isAsync = phase === 'async';
 
-  // Scale travel time with distance so long jumps feel deliberate instead of
-  // snapping — but never longer than ~70% of the step's dwell, so the packet
-  // always arrives at a node before the next step fires.
-  const prevYRef = useRef(firstY);
-  const distance = Math.abs(packetY - prevYRef.current);
-  const distanceDur = Math.min(0.85, 0.26 + distance * 0.002);
-  const dwellDur = (stepDuration / 1000) * 0.7;
-  const travelDur = reduce ? 0 : Math.max(0.2, Math.min(distanceDur, dwellDur));
+  // Track the previous active node to highlight the traversed edge and to
+  // bound travel time by distance.
+  const prevRef = useRef<NodeId | null>(null);
+  const prev = prevRef.current;
   useEffect(() => {
-    prevYRef.current = packetY;
-  }, [packetY]);
+    prevRef.current = activeNode;
+  }, [activeNode]);
+
+  const packet = activeNode ? center(activeNode) : center('ui');
+  let travelDur = 0.3;
+  if (activeNode && prev && prev !== activeNode) {
+    const a = center(prev);
+    const dist = Math.hypot(packet.x - a.x, packet.y - a.y);
+    const distanceDur = Math.min(0.85, 0.26 + dist * 0.0016);
+    const dwellDur = (stepDuration / 1000) * 0.7;
+    travelDur = Math.max(0.2, Math.min(distanceDur, dwellDur));
+  }
+
+  const activeEdge = (a: NodeId, b: NodeId) =>
+    !!activeNode &&
+    !!prev &&
+    ((prev === a && activeNode === b) || (prev === b && activeNode === a));
+
+  const detail = hovered ? NODES[hovered] : null;
 
   return (
-    <div ref={containerRef} className="relative flex gap-3 sm:gap-4">
-      {/* Left rail: spine, progress fill, traveling packet */}
-      <div className="relative w-8 shrink-0" aria-hidden>
-        {measured ? (
-          <>
-            <div
-              className="absolute w-px -translate-x-1/2 bg-border"
-              style={{ left: RAIL_X, top: firstY, height: Math.max(0, lastY - firstY) }}
-            />
-            <motion.div
-              className={cn(
-                'absolute w-px -translate-x-1/2',
-                isAsync ? 'bg-accent/30' : 'bg-accent',
-              )}
-              style={{ left: RAIL_X, top: firstY }}
-              animate={{ height: Math.max(0, packetY - firstY) }}
-              transition={{ duration: travelDur, ease: [0.16, 1, 0.3, 1] }}
-            />
-            {showPacket ? (
-              <motion.div
-                className="absolute -translate-x-1/2 -translate-y-1/2"
-                style={{ left: RAIL_X }}
-                animate={{ top: packetY }}
-                transition={{ duration: travelDur, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <span className="relative flex h-3 w-3">
-                  {running && !reduce ? (
-                    <span
-                      className={cn(
-                        'absolute inline-flex h-full w-full animate-ping rounded-full opacity-70',
-                        isAsync ? 'bg-accent/40' : 'bg-accent',
-                      )}
+    <div>
+      <div className="overflow-x-auto pb-1">
+        <div ref={graphRef} className="relative h-[360px] min-w-[560px] sm:h-[400px]">
+          {/* Edges */}
+          {measured ? (
+            <svg
+              width={size.w}
+              height={size.h}
+              className="absolute inset-0"
+              style={{ overflow: 'visible' }}
+              aria-hidden
+            >
+              <defs>
+                <marker
+                  id="rj-arrow"
+                  viewBox="0 0 10 10"
+                  refX="8"
+                  refY="5"
+                  markerWidth="5"
+                  markerHeight="5"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(240 5% 35%)" />
+                </marker>
+              </defs>
+              {EDGES.map(([f, t]) => {
+                const cf = center(f);
+                const ct = center(t);
+                const p1 = trim(ct, cf, 46);
+                const p2 = trim(cf, ct, 50);
+                const on = activeEdge(f, t);
+                return (
+                  <g key={`${f}-${t}`}>
+                    <line
+                      x1={p1.x}
+                      y1={p1.y}
+                      x2={p2.x}
+                      y2={p2.y}
+                      stroke="hsl(240 5% 20%)"
+                      strokeWidth={1.25}
+                      markerEnd="url(#rj-arrow)"
                     />
-                  ) : null}
+                    {on ? (
+                      <line
+                        x1={p1.x}
+                        y1={p1.y}
+                        x2={p2.x}
+                        y2={p2.y}
+                        stroke="hsl(172 66% 50%)"
+                        strokeWidth={1.75}
+                        strokeDasharray="4 10"
+                        className={reduce ? undefined : 'animate-flow-dash'}
+                        opacity={0.9}
+                      />
+                    ) : null}
+                  </g>
+                );
+              })}
+            </svg>
+          ) : null}
+
+          {/* Packet */}
+          {measured && activeNode ? (
+            <motion.div
+              className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2"
+              initial={false}
+              animate={{ left: packet.x, top: packet.y }}
+              transition={
+                reduce ? { duration: 0 } : { duration: travelDur, ease: [0.16, 1, 0.3, 1] }
+              }
+            >
+              <span className="relative flex h-3 w-3">
+                {running && !reduce ? (
                   <span
                     className={cn(
-                      'relative inline-flex h-3 w-3 rounded-full',
-                      isAsync ? 'bg-accent/60' : 'bg-accent',
+                      'absolute inline-flex h-full w-full animate-ping rounded-full opacity-70',
+                      isAsync ? 'bg-accent/40' : 'bg-accent',
                     )}
-                    style={{ boxShadow: '0 0 12px 2px hsl(172 66% 50% / 0.6)' }}
                   />
-                </span>
-              </motion.div>
-            ) : null}
-          </>
-        ) : null}
+                ) : null}
+                <span
+                  className={cn(
+                    'relative inline-flex h-3 w-3 rounded-full',
+                    isAsync ? 'bg-accent/70' : 'bg-accent',
+                  )}
+                  style={{ boxShadow: '0 0 12px 2px hsl(172 66% 50% / 0.6)' }}
+                />
+              </span>
+            </motion.div>
+          ) : null}
+
+          {/* Nodes */}
+          {NODE_IDS.map((id) => (
+            <div
+              key={id}
+              className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+              style={{ left: `${POS[id].x}%`, top: `${POS[id].y}%` }}
+            >
+              <ServiceNode
+                node={NODES[id]}
+                status={statuses[id]}
+                active={activeNode === id}
+                phase={phase}
+                onHover={setHovered}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Node column */}
-      <div className="flex flex-1 flex-col gap-2.5">
-        {NODE_IDS.map((id) => (
-          <ServiceNode
-            key={id}
-            ref={(el) => {
-              if (el) nodeEls.current.set(id, el);
-              else nodeEls.current.delete(id);
-            }}
-            node={NODES[id]}
-            status={statuses[id]}
-            active={activeNode === id}
-            phase={phase}
-          />
-        ))}
+      {/* Details strip — replaces per-node popovers, avoids clipping */}
+      <div className="mt-3 min-h-[56px] rounded-lg border border-border bg-bg/50 px-4 py-3">
+        {detail ? (
+          <p className="text-sm leading-relaxed text-fg-secondary">
+            <span className="font-mono text-xs uppercase tracking-wider text-accent">
+              {detail.name}
+            </span>
+            <span className="mx-2 text-fg-muted">·</span>
+            {detail.why}
+          </p>
+        ) : (
+          <p className="text-sm text-fg-muted">
+            Hover a component to see why it&apos;s in the architecture. Two ingress paths — the
+            platform UI (REST) and the dialer (webhooks) — converge on the shared data layer.
+          </p>
+        )}
       </div>
     </div>
   );
