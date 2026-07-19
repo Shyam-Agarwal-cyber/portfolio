@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Shyam Agarwal — Software Engineer specializing in event-driven backend systems, Kafka, and distributed infrastructure." />
+  <meta name="author" content="Shyam Agarwal" />
+
+  <!-- Open Graph / social preview -->
+  <meta property="og:title" content="Shyam Agarwal — Software Engineer" />
+  <meta property="og:description" content="Backend & infra engineer. Event-driven systems at scale — 5M+ Kafka events/day." />
+  <meta property="og:type" content="website" />
+
+  <title>Shyam Agarwal — Software Engineer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace'>%3C/%3E</text></svg>" />
+</head>
+<body>
+  <!-- Progress bar -->
+  <div class="scroll-progress" id="scrollProgress"></div>
+
+  <!-- Navigation -->
+  <header class="nav" id="nav">
+    <div class="container nav__inner">
+      <a href="#hero" class="nav__logo">
+        <span class="nav__logo-bracket">&lt;</span>shyam<span class="nav__logo-bracket">/&gt;</span>
+      </a>
+      <nav class="nav__links" id="navLinks">
+        <a href="#about">About</a>
+        <a href="#experience">Experience</a>
+        <a href="#projects">Work</a>
+        <a href="#skills">Skills</a>
+        <a href="#contact">Contact</a>
+        <a href="Shyam-Agarwal-Resume.pdf" class="btn btn--sm" download>Resume ↓</a>
+      </nav>
+      <button class="nav__toggle" id="navToggle" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero" id="hero">
+      <div class="hero__bg" aria-hidden="true"></div>
+      <div class="container hero__inner">
+        <p class="hero__eyebrow reveal">
+          <span class="status-dot"></span> Software Engineer · Credgenics · Noida, India
+        </p>
+        <h1 class="hero__title reveal">
+          Hi, I'm Shyam Agarwal.<br />
+          I build <span class="grad">event-driven backends</span><br />
+          that scale.
+        </h1>
+        <p class="hero__lead reveal">
+          Backend &amp; infrastructure engineer focused on Kafka, distributed systems,
+          and squeezing latency out of high-throughput services. I own consumers that process
+          <strong>5M+ events a day</strong> with exactly-once semantics.
+        </p>
+        <div class="hero__cta reveal">
+          <a href="#projects" class="btn btn--primary">View my work</a>
+          <a href="Shyam-Agarwal-Resume.pdf" class="btn btn--ghost" download>Download résumé ↓</a>
+        </div>
+        <div class="hero__stats reveal">
+          <div class="stat">
+            <span class="stat__num" data-count="5" data-suffix="M+">0</span>
+            <span class="stat__label">Kafka events / day</span>
+          </div>
+          <div class="stat">
+            <span class="stat__num" data-count="87" data-suffix="%">0</span>
+            <span class="stat__label">p99 latency cut</span>
+          </div>
+          <div class="stat">
+            <span class="stat__num" data-count="2.66" data-suffix="M">0</span>
+            <span class="stat__label">Leads automated</span>
+          </div>
+          <div class="stat">
+            <span class="stat__num" data-prefix="₹" data-count="22.8" data-suffix="L">0</span>
+            <span class="stat__label">Infra cost avoided</span>
+          </div>
+        </div>
+      </div>
+      <a href="#about" class="hero__scroll" aria-label="Scroll down">
+        <span></span>
+      </a>
+    </section>
+
+    <!-- About -->
+    <section class="section" id="about">
+      <div class="container">
+        <p class="section__kicker">01 — About</p>
+        <div class="about">
+          <div class="about__text">
+            <h2 class="section__title">Engineer who cares about the tail latency.</h2>
+            <p>
+              I'm a Software Engineer at <strong>Credgenics</strong>, where I own the event-streaming
+              backbone of the dialer service. My day-to-day is Kafka consumers, PostgreSQL under
+              contention, Redis caches, and Kubernetes autoscaling — the unglamorous plumbing that
+              keeps a platform reliable as it grows from 1M to 5M calls a day.
+            </p>
+            <p>
+              I like problems where the metric is unforgiving: p99 latency, throughput regressions,
+              exactly-once delivery, procurement cost. I've shipped an
+              <strong>auto-churn workflow adopted by 85% of campaigns</strong>, cut a hot endpoint's
+              p99 from <strong>4s to 500ms</strong>, and built a reclamation pipeline that avoided
+              <strong>₹22.8L</strong> in telecom spend on its first run.
+            </p>
+            <p>
+              I studied Computer Science at <strong>IIIT Nagpur</strong> (CGPA 8.07) and still keep
+              my competitive-programming edge sharp on Codeforces and CodeChef.
+            </p>
+          </div>
+          <aside class="about__card">
+            <div class="about__card-head">
+              <span class="dot dot--red"></span>
+              <span class="dot dot--yellow"></span>
+              <span class="dot dot--green"></span>
+              <span class="about__card-file">whoami.sh</span>
+            </div>
+            <pre class="about__card-body"><code><span class="c-prompt">$</span> <span class="c-cmd">whoami</span>
+shyam-agarwal
+
+<span class="c-prompt">$</span> <span class="c-cmd">cat</span> role.txt
+Software Engineer @ Credgenics
+
+<span class="c-prompt">$</span> <span class="c-cmd">location</span>
+Noida, India · Remote-friendly
+
+<span class="c-prompt">$</span> <span class="c-cmd">stack</span> --top
+Python · FastAPI · Kafka
+PostgreSQL · Redis · Kubernetes
+
+<span class="c-prompt">$</span> <span class="c-cmd">status</span>
+<span class="c-ok">● open to opportunities</span>
+<span class="c-cursor">_</span></code></pre>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- Experience -->
+    <section class="section section--alt" id="experience">
+      <div class="container">
+        <p class="section__kicker">02 — Experience</p>
+        <h2 class="section__title">Where I've worked</h2>
+        <div class="timeline">
+          <article class="tl-item">
+            <div class="tl-item__marker"></div>
+            <div class="tl-item__body">
+              <div class="tl-item__head">
+                <h3>Software Engineer</h3>
+                <span class="tl-item__date">Jul 2024 — Present</span>
+              </div>
+              <p class="tl-item__org">Credgenics · Noida, India</p>
+              <ul class="tl-item__points">
+                <li>Own all <strong>Kafka consumers</strong> across the dialer service; the primary call-webhook consumer processes <strong>5M+ events/day</strong> with exactly-once semantics via application-level idempotency, fanning out to topics for call-recording sync, webhook forwarding, and borrower-type updates.</li>
+                <li>Designed and independently architected the <strong>Auto Churn</strong> lead re-engagement workflow — now the most-adopted optional feature on the platform (<strong>794/934 campaigns, 142 companies, 2.66M leads</strong>).</li>
+                <li>Cut <strong>p99 latency from 4s to 500ms</strong> on the agent-availability endpoint via Redis caching, composite PostgreSQL index tuning, and query batching.</li>
+                <li>Led decomposition of the monolithic dialer into a dedicated <strong>reporting service</strong> with KEDA HTTP autoscaling (3–30 replicas) on AWS EKS.</li>
+                <li>Built an automated <strong>DID reclamation DAG</strong> that avoided ₹22.8L in procurement on first run (₹2.4L/month ongoing).</li>
+                <li>Consolidated <strong>6 REST APIs into 2</strong> during the vendor-to-in-house migration, supporting scale from 1M → 5M calls/day.</li>
+              </ul>
+              <div class="tl-item__tags">
+                <span>Kafka</span><span>FastAPI</span><span>PostgreSQL</span><span>Redis</span><span>AWS EKS</span><span>KEDA</span><span>Airflow</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="tl-item">
+            <div class="tl-item__marker"></div>
+            <div class="tl-item__body">
+              <div class="tl-item__head">
+                <h3>Software Engineer Intern</h3>
+                <span class="tl-item__date">Jan 2024 — Jun 2024</span>
+              </div>
+              <p class="tl-item__org">Credgenics · Noida, India</p>
+              <ul class="tl-item__points">
+                <li>Built dialer platform UI modules in <strong>ReactJS + MUI</strong>; authored backend APIs, database queries, and bug fixes across the calling and campaign-management modules.</li>
+              </ul>
+              <div class="tl-item__tags">
+                <span>ReactJS</span><span>MUI</span><span>REST APIs</span><span>PostgreSQL</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="tl-item">
+            <div class="tl-item__marker"></div>
+            <div class="tl-item__body">
+              <div class="tl-item__head">
+                <h3>B.Tech, Computer Science</h3>
+                <span class="tl-item__date">Dec 2020 — Jun 2024</span>
+              </div>
+              <p class="tl-item__org">Indian Institute of Information Technology, Nagpur · CGPA 8.07</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Projects / Selected Work -->
+    <section class="section" id="projects">
+      <div class="container">
+        <p class="section__kicker">03 — Selected Work</p>
+        <h2 class="section__title">Things I've shipped</h2>
+        <p class="section__sub">Impact-driven work from my time at Credgenics.</p>
+
+        <div class="cards">
+          <article class="card">
+            <div class="card__top">
+              <span class="card__icon">⚡</span>
+              <span class="card__metric">5M+ / day</span>
+            </div>
+            <h3 class="card__title">Kafka Event-Streaming Backbone</h3>
+            <p class="card__desc">
+              Own every Kafka consumer in the dialer service. The primary call-webhook consumer
+              processes 5M+ events/day with exactly-once semantics via application-level idempotency,
+              fanning out to supplementary topics. Health-monitored with Grafana lag dashboards and
+              KEDA autoscaling on EKS.
+            </p>
+            <div class="card__tags"><span>Kafka</span><span>Redpanda</span><span>KEDA</span><span>Grafana</span></div>
+          </article>
+
+          <article class="card card--feature">
+            <div class="card__top">
+              <span class="card__icon">🔁</span>
+              <span class="card__metric">85% adoption</span>
+            </div>
+            <h3 class="card__title">Auto Churn — Lead Re-engagement</h3>
+            <p class="card__desc">
+              Designed and independently architected an event-driven workflow: the dialer emits a
+              <code>lead-cycle-end</code> event, a consumer applies campaign-validation logic to find
+              eligible leads and re-enqueues them for subsequent cycles across predictive and voicebot
+              campaigns. Now the most-adopted optional feature — 794/934 campaigns, 142 companies, 2.66M leads.
+            </p>
+            <div class="card__tags"><span>Event-Driven</span><span>Kafka</span><span>Python</span><span>System Design</span></div>
+          </article>
+
+          <article class="card">
+            <div class="card__top">
+              <span class="card__icon">🚀</span>
+              <span class="card__metric">4s → 500ms</span>
+            </div>
+            <h3 class="card__title">p99 Latency Optimization</h3>
+            <p class="card__desc">
+              Reduced p99 latency on the agent-availability endpoint by 8× via Redis caching of
+              per-campaign user slots, composite PostgreSQL index tuning, and query batching —
+              validated pre/post release with Elastic APM.
+            </p>
+            <div class="card__tags"><span>Redis</span><span>PostgreSQL</span><span>Elastic APM</span></div>
+          </article>
+
+          <article class="card">
+            <div class="card__top">
+              <span class="card__icon">💰</span>
+              <span class="card__metric">₹22.8L saved</span>
+            </div>
+            <h3 class="card__title">DID Reclamation Pipeline</h3>
+            <p class="card__desc">
+              Identified 7,600+ idle telecom DIDs and built an automated reclamation DAG that returns
+              inactive numbers to the allocation pool — avoiding ₹22.8L in procurement on first run,
+              with 800+ DIDs/month reclaimed (₹2.4L/month) ongoing.
+            </p>
+            <div class="card__tags"><span>Airflow</span><span>Python</span><span>Cost Eng.</span></div>
+          </article>
+
+          <article class="card">
+            <div class="card__top">
+              <span class="card__icon">🧩</span>
+              <span class="card__metric">3–30 replicas</span>
+            </div>
+            <h3 class="card__title">Dialer → Reporting Service Split</h3>
+            <p class="card__desc">
+              Proposed and led decomposition of the monolithic dialer into a dedicated reporting
+              service. Authored the design doc, got EM sign-off, and configured KEDA HTTP autoscaling
+              on EKS — eliminating 503 errors on the export consumer and enabling independent scaling.
+            </p>
+            <div class="card__tags"><span>Microservices</span><span>AWS EKS</span><span>KEDA</span><span>Design Doc</span></div>
+          </article>
+
+          <article class="card">
+            <div class="card__top">
+              <span class="card__icon">🔗</span>
+              <span class="card__metric">6 → 2 APIs</span>
+            </div>
+            <h3 class="card__title">API Consolidation &amp; Migration</h3>
+            <p class="card__desc">
+              During the vendor-to-in-house dialer migration, consolidated 6 fragmented REST APIs into
+              2 unified endpoints. Designed the full API contract, ran a 30-day parallel production
+              window, and deprecated legacy routes — cutting API surface 67% while scaling 1M → 5M calls/day.
+            </p>
+            <div class="card__tags"><span>REST API Design</span><span>FastAPI</span><span>Migration</span></div>
+          </article>
+
+          <article class="card">
+            <div class="card__top">
+              <span class="card__icon">🤖</span>
+              <span class="card__metric">60 concurrent calls</span>
+            </div>
+            <h3 class="card__title">LLM Voicebot Pipeline</h3>
+            <p class="card__desc">
+              Integrated backend changes into the in-house LLM voicebot pipeline (Groq LLM, self-hosted
+              TTS, STT vendor APIs) supporting 60 concurrent calls. Authored 5+ Airflow DAGs — EOD
+              aggregation, DLQ retry, and SIP alerting at a 15-minute cadence.
+            </p>
+            <div class="card__tags"><span>Groq LLM</span><span>Airflow</span><span>TTS/STT</span><span>Python</span></div>
+          </article>
+
+          <article class="card">
+            <div class="card__top">
+              <span class="card__icon">🛠️</span>
+              <span class="card__metric">Same-day fix</span>
+            </div>
+            <h3 class="card__title">DB Reliability &amp; RCA</h3>
+            <p class="card__desc">
+              Diagnosed a production throughput regression caused by PostgreSQL row-level lock
+              contention — batching campaign-instance updates with other writes created hot-row
+              contention under load. Decoupled the execution path, restored throughput same-day, and
+              authored an RCA for the DBA and engineering teams.
+            </p>
+            <div class="card__tags"><span>PostgreSQL</span><span>Lock Analysis</span><span>RCA</span></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Skills -->
+    <section class="section section--alt" id="skills">
+      <div class="container">
+        <p class="section__kicker">04 — Skills</p>
+        <h2 class="section__title">Tools of the trade</h2>
+        <div class="skills">
+          <div class="skill-group">
+            <h3>Languages</h3>
+            <div class="skill-tags"><span>Python</span><span>JavaScript</span><span>SQL</span><span class="muted">C++</span></div>
+          </div>
+          <div class="skill-group">
+            <h3>Backend</h3>
+            <div class="skill-tags"><span>FastAPI</span><span>Quartz</span><span>asyncio</span><span>REST API Design</span><span class="muted">Node.js</span></div>
+          </div>
+          <div class="skill-group">
+            <h3>Databases &amp; Caching</h3>
+            <div class="skill-tags"><span>PostgreSQL</span><span>Redis</span><span class="muted">MongoDB</span></div>
+          </div>
+          <div class="skill-group">
+            <h3>Messaging &amp; Infra</h3>
+            <div class="skill-tags"><span>Apache Kafka</span><span>Redpanda</span><span>Airflow</span><span>AWS EKS</span><span>Kubernetes</span><span>KEDA</span><span>Docker</span><span>Jenkins</span></div>
+          </div>
+          <div class="skill-group">
+            <h3>Observability</h3>
+            <div class="skill-tags"><span>Elastic APM</span><span>Grafana</span></div>
+          </div>
+          <div class="skill-group">
+            <h3>Frontend</h3>
+            <div class="skill-tags"><span class="muted">ReactJS</span><span class="muted">Redux</span><span class="muted">MUI</span></div>
+          </div>
+        </div>
+
+        <div class="achievements">
+          <h3 class="achievements__title">🏆 Competitive Programming</h3>
+          <ul>
+            <li><strong>Codeforces</strong> — Rank 2059 in Round 908 Div. 2 (10k+ participants)</li>
+            <li><strong>CodeChef</strong> — Rank 69 in Starters 45 Div. 2; Rank 33 in Starters 41 Div. 3 (both rated)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact -->
+    <section class="section" id="contact">
+      <div class="container">
+        <p class="section__kicker">05 — Contact</p>
+        <div class="contact">
+          <div class="contact__intro">
+            <h2 class="section__title">Let's build something.</h2>
+            <p>
+              I'm open to backend and platform engineering opportunities. Drop a message and I'll get
+              back to you — or reach me directly through any of the links below.
+            </p>
+            <ul class="contact__links">
+              <li>
+                <a href="mailto:shyam5320235@gmail.com">
+                  <span class="contact__icon">✉</span> shyam5320235@gmail.com
+                </a>
+              </li>
+              <li>
+                <a href="tel:+917906642731">
+                  <span class="contact__icon">☎</span> +91 79066 42731
+                </a>
+              </li>
+              <li>
+                <a href="https://github.com/shyam-agarwal-cyber" target="_blank" rel="noopener">
+                  <span class="contact__icon">⌥</span> github.com/shyam-agarwal-cyber
+                </a>
+              </li>
+              <li>
+                <a href="https://www.linkedin.com/in/shyam-agarwal-b38543202" target="_blank" rel="noopener">
+                  <span class="contact__icon">in</span> linkedin.com/in/shyam-agarwal-b38543202
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <!--
+            CONTACT FORM SETUP
+            ------------------
+            This form works out of the box via Formspree (free tier).
+            1. Sign up at https://formspree.io with shyam5320235@gmail.com
+            2. Create a form; copy your form ID (looks like: xayzabcd)
+            3. Replace YOUR_FORM_ID below with it.
+            Until then, the form falls back to opening the user's email client.
+          -->
+          <form class="contact__form" id="contactForm"
+                action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+            <div class="field">
+              <label for="name">Name</label>
+              <input type="text" id="name" name="name" required placeholder="Jane Doe" />
+            </div>
+            <div class="field">
+              <label for="email">Email</label>
+              <input type="email" id="email" name="email" required placeholder="jane@company.com" />
+            </div>
+            <div class="field">
+              <label for="message">Message</label>
+              <textarea id="message" name="message" rows="4" required placeholder="Tell me about the role or project…"></textarea>
+            </div>
+            <button type="submit" class="btn btn--primary btn--full">Send message →</button>
+            <p class="contact__form-note" id="formNote"></p>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <span>© <span id="year"></span> Shyam Agarwal</span>
+      <span class="footer__built">Built from scratch · HTML · CSS · JS</span>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

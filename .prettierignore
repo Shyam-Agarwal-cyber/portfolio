@@ -1,0 +1,7 @@
+legacy
+node_modules
+.next
+out
+pnpm-lock.yaml
+package-lock.json
+*.pdf
