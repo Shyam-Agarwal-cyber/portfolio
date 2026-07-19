@@ -5,12 +5,13 @@
  *   1. Synchronous REST — the platform UI sends call-create (ingest a row),
  *      call-update (disposition, committed amount), and voicebot campaign
  *      creation (guarded by a Redis distributed lock) requests to the API.
- *   2. Asynchronous events — the dialer produces call webhooks to Kafka; a
- *      separate consumer processes that topic (9M+ events/day), made idempotent
- *      by a Postgres unique constraint (ON CONFLICT).
+ *   2. Asynchronous events — the in-house dialer produces call webhooks to
+ *      Kafka; a separate consumer processes that topic (9M+ events/day), made
+ *      idempotent by a Postgres unique constraint (ON CONFLICT).
  *
- * The UI and the Dialer are distinct upstreams: webhook ingestion bypasses the
- * UI, load balancer, and REST API entirely.
+ * FastAPI (REST) and the Webhook Consumer (async) are the orchestrators: the
+ * data stores never talk to each other, so every store call returns to its
+ * caller before the next one begins (e.g. FastAPI → Postgres → FastAPI → Redis).
  *
  * Pure and presentation-agnostic: components read `NODES` for layout and
  * `buildScenario()` for a deterministic-per-run list of animation steps.
@@ -65,7 +66,7 @@ export const NODES: Record<NodeId, ServiceNodeMeta> = {
     id: 'fastapi',
     name: 'FastAPI',
     purpose: 'Async REST API',
-    why: 'Handles call-create, call-update, and campaign creation from the UI. Why async: the work is I/O-bound (DB, cache), so one worker holds thousands of concurrent awaits instead of a thread per request.',
+    why: 'Orchestrates call-create, call-update, and campaign creation. Every DB/cache call is made from here and returns here — the stores never call each other. Why async: the work is I/O-bound, so one worker holds thousands of concurrent awaits.',
     icon: 'server',
   },
   redis: {
@@ -79,7 +80,7 @@ export const NODES: Record<NodeId, ServiceNodeMeta> = {
     id: 'postgres',
     name: 'PostgreSQL',
     purpose: 'Call records · source of truth',
-    why: 'Stores every call and its updates (disposition, committed amount), written by both the UI (REST) and the consumer (webhooks). Webhook idempotency is enforced here with a unique constraint (ON CONFLICT); the hot updated row is where lock contention shows up.',
+    why: 'Stores every call and its updates (disposition, committed amount), written by both FastAPI (REST) and the consumer (webhooks). Webhook idempotency is enforced here with a unique constraint (ON CONFLICT); the hot updated row is where lock contention shows up.',
     icon: 'database',
   },
   dialer: {
@@ -100,14 +101,14 @@ export const NODES: Record<NodeId, ServiceNodeMeta> = {
     id: 'consumer',
     name: 'Webhook Consumer',
     purpose: 'Idempotent Kafka consumer',
-    why: 'My consumer for the dialer webhook topic. Exactly-once via a Postgres unique constraint (idempotent upsert); fans out to recording-sync, webhook-forwarding, and borrower-type updates.',
+    why: 'My consumer for the dialer webhook topic. Exactly-once via a Postgres unique constraint (idempotent upsert); it writes to Postgres, then fans out to recording-sync, webhook-forwarding, and borrower-type updates.',
     icon: 'cpu',
   },
   downstream: {
     id: 'downstream',
     name: 'Fan-out',
     purpose: 'Recording · forwarding · analytics',
-    why: 'Supplementary topics and downstream updates fed from the webhook stream — all off the request path so reporting never touches hot traffic.',
+    why: 'Supplementary topics and downstream updates the consumer fans out to after the DB write — all off the request path so reporting never touches hot traffic.',
     icon: 'share',
   },
 };
@@ -235,17 +236,18 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       phase: 'request',
       level: 'INFO',
       service: 'postgres',
-      message: 'INSERT INTO calls (call_uuid, campaign_id, status=NEW)',
+      message: 'INSERT INTO calls (call_uuid, campaign_id, status=NEW) → id=88214',
       duration: T.DB,
       patch: { incDbQueries: 1, latencyAdd: 22 },
     },
     {
-      node: 'postgres',
+      node: 'fastapi',
       phase: 'request',
       level: 'INFO',
-      service: 'postgres',
-      message: '1 row inserted · id=88214 · 6ms',
-      duration: T.THINK,
+      service: 'fastapi',
+      message: 'inserted id=88214 → warm cache',
+      duration: T.HOP,
+      patch: { latencyAdd: 1 },
     },
     {
       node: 'redis',
@@ -255,6 +257,15 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       message: 'SETEX call:88214 ttl=300s',
       duration: T.HOP,
       patch: { latencyAdd: 3 },
+    },
+    {
+      node: 'fastapi',
+      phase: 'request',
+      level: 'INFO',
+      service: 'fastapi',
+      message: 'serialize · 201 Created',
+      duration: T.HOP,
+      patch: { latencyAdd: 2 },
     },
     {
       node: 'ui',
@@ -279,12 +290,13 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       patch: { incDbQueries: 1, latencyAdd: 24 },
     },
     {
-      node: 'postgres',
+      node: 'fastapi',
       phase: 'request',
       level: 'INFO',
-      service: 'postgres',
-      message: '1 row updated · disposition=PTP · committed=₹15,000 · 7ms',
-      duration: T.THINK,
+      service: 'fastapi',
+      message: 'updated · disposition=PTP · committed=₹15,000 → invalidate cache',
+      duration: T.HOP,
+      patch: { latencyAdd: 1 },
     },
     {
       node: 'redis',
@@ -292,6 +304,15 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       level: 'INFO',
       service: 'redis',
       message: 'DEL call:88214 (invalidate stale cache)',
+      duration: T.HOP,
+      patch: { latencyAdd: 2 },
+    },
+    {
+      node: 'fastapi',
+      phase: 'request',
+      level: 'INFO',
+      service: 'fastapi',
+      message: 'serialize · 200 OK',
       duration: T.HOP,
       patch: { latencyAdd: 2 },
     },
@@ -322,12 +343,12 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       },
     },
     {
-      node: 'redis',
+      node: 'fastapi',
       phase: 'request',
       level: 'WARN',
-      service: 'redis',
-      message: 'concurrent create for acct-142 → blocked, awaiting lock',
-      duration: T.THINK,
+      service: 'fastapi',
+      message: 'lock held · concurrent create for acct-142 waits · running workflow',
+      duration: T.HOP,
     },
     {
       node: 'postgres',
@@ -339,11 +360,28 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       patch: { incDbQueries: 1, latencyAdd: 38 },
     },
     {
+      node: 'fastapi',
+      phase: 'request',
+      level: 'INFO',
+      service: 'fastapi',
+      message: 'workflow done → releasing lock',
+      duration: T.HOP,
+    },
+    {
       node: 'redis',
       phase: 'request',
       level: 'INFO',
       service: 'redis',
       message: 'DEL lock:campaign:acct-142:voicebot → released · waiter proceeds',
+      duration: T.HOP,
+      patch: { latencyAdd: 2 },
+    },
+    {
+      node: 'fastapi',
+      phase: 'request',
+      level: 'INFO',
+      service: 'fastapi',
+      message: 'serialize · 201 Created',
       duration: T.HOP,
       patch: { latencyAdd: 2 },
     },
@@ -375,7 +413,7 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       phase: 'request',
       level: 'INFO',
       service: 'fastapi',
-      message: 'serialize slot map (cached, no DB hit)',
+      message: 'cache hit · serialize (no DB hit)',
       duration: T.HOP,
       patch: { latencyAdd: 2 },
     },
@@ -385,7 +423,7 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       level: 'INFO',
       service: 'ui',
       message: '200 OK · {lat}ms (p99 target: 500ms)',
-      duration: T.DB,
+      duration: T.JUMP,
       outcome: 'ok',
     },
   ],
@@ -402,20 +440,28 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       patch: { cache: 'miss', latencyAdd: 1 },
     },
     {
+      node: 'fastapi',
+      phase: 'request',
+      level: 'INFO',
+      service: 'fastapi',
+      message: 'cache miss → query Postgres',
+      duration: T.HOP,
+    },
+    {
       node: 'postgres',
       phase: 'request',
       level: 'INFO',
       service: 'postgres',
-      message: 'SELECT per-campaign slots (composite index)',
+      message: 'SELECT per-campaign slots (composite index) · 18ms',
       duration: T.DB,
       patch: { incDbQueries: 1, latencyAdd: 42 },
     },
     {
-      node: 'redis',
+      node: 'fastapi',
       phase: 'request',
       level: 'INFO',
-      service: 'redis',
-      message: 'SETEX slots:campaign:77 ttl=60s (warm cache)',
+      service: 'fastapi',
+      message: 'warm cache (SETEX 60s) · serialize',
       duration: T.HOP,
       patch: { latencyAdd: 3 },
     },
@@ -581,14 +627,22 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       duration: T.THINK,
     },
     {
+      node: 'fastapi',
+      phase: 'request',
+      level: 'WARN',
+      service: 'fastapi',
+      message: 'serialize · 200 (degraded: lock wait)',
+      duration: T.HOP,
+      banner: null,
+    },
+    {
       node: 'ui',
       phase: 'request',
       level: 'WARN',
       service: 'ui',
-      message: '200 OK · {lat}ms  (degraded: lock wait)',
+      message: '200 OK · {lat}ms',
       duration: T.JUMP,
       outcome: 'degraded',
-      banner: null,
     },
   ],
 
@@ -604,6 +658,14 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       patch: { cache: 'miss', latencyAdd: 1 },
     },
     {
+      node: 'fastapi',
+      phase: 'request',
+      level: 'INFO',
+      service: 'fastapi',
+      message: 'cache miss → query Postgres',
+      duration: T.HOP,
+    },
+    {
       node: 'postgres',
       phase: 'request',
       level: 'WARN',
@@ -617,13 +679,14 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       },
     },
     {
-      node: 'redis',
+      node: 'fastapi',
       phase: 'request',
       level: 'INFO',
-      service: 'redis',
-      message: 'SETEX ttl=60s (protects the next request)',
+      service: 'fastapi',
+      message: 'warm cache · serialize (slow)',
       duration: T.HOP,
       patch: { latencyAdd: 3 },
+      banner: null,
     },
     {
       node: 'ui',
@@ -633,7 +696,6 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       message: '200 OK · {lat}ms  (slow)',
       duration: T.JUMP,
       outcome: 'degraded',
-      banner: null,
     },
   ],
 
@@ -684,7 +746,7 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       level: 'INFO',
       service: 'consumer',
       message: 'backlog cleared · lag 0 · offsets committed',
-      duration: T.HOP,
+      duration: T.JUMP,
       patch: { consumerLag: 0, consumer: 'idle' },
       banner: null,
       outcome: 'ok',
@@ -736,7 +798,7 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       level: 'ERROR',
       service: 'consumer',
       message: 'max retries → publish to dialer.webhooks.DLQ',
-      duration: T.DB,
+      duration: T.JUMP,
       patch: { consumerLag: 0, consumer: 'idle' },
       banner: {
         level: 'error',
@@ -763,13 +825,12 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       },
     },
     {
-      node: 'postgres',
+      node: 'fastapi',
       phase: 'request',
       level: 'WARN',
       service: 'fastapi',
-      message: 'cache bypass · reading from source of truth',
-      duration: T.DB,
-      patch: { incDbQueries: 1, latencyAdd: 61 },
+      message: 'cache bypass → read from source of truth',
+      duration: T.HOP,
     },
     {
       node: 'postgres',
@@ -777,14 +838,23 @@ const BUILDERS: Record<ScenarioId, () => Step[]> = {
       level: 'INFO',
       service: 'postgres',
       message: 'per-campaign slots · 58ms (cold, uncached)',
-      duration: T.THINK,
+      duration: T.DB,
+      patch: { incDbQueries: 1, latencyAdd: 61 },
+    },
+    {
+      node: 'fastapi',
+      phase: 'request',
+      level: 'WARN',
+      service: 'fastapi',
+      message: 'serialize · degraded (cache offline)',
+      duration: T.HOP,
     },
     {
       node: 'ui',
       phase: 'request',
       level: 'WARN',
       service: 'ui',
-      message: '200 OK · {lat}ms  (degraded: cache offline)',
+      message: '200 OK · {lat}ms',
       duration: T.JUMP,
       outcome: 'degraded',
     },
