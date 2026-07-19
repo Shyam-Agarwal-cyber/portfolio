@@ -49,7 +49,7 @@ export default function OpengraphImage() {
         {[
           ['9M+', 'events / day'],
           ['4s → 500ms', 'p99 latency'],
-          ['Rs 22.8L', 'cost avoided'],
+          ['Rs 22.8L', 'cost saved'],
         ].map(([v, l]) => (
           <div key={l} style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ color: '#2DD4BF', fontSize: 40, fontWeight: 700 }}>{v}</div>

@@ -108,7 +108,7 @@ export function Hero() {
                   fill
                   priority
                   sizes="(max-width: 1024px) 280px, 360px"
-                  className="object-cover object-top"
+                  className="origin-top scale-[1.12] object-cover object-top"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-surface via-surface/15 to-transparent" />
                 <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/5" />

@@ -31,7 +31,7 @@ export const heroMetrics: readonly HeroMetric[] = [
     prefix: '₹',
     suffix: 'L',
     decimals: 1,
-    label: 'infra cost avoided',
+    label: 'infra cost saved',
     note: 'first run alone',
   },
 ] as const;
@@ -163,7 +163,7 @@ export const achievements: readonly Achievement[] = [
   {
     id: 'did-reclaim',
     title: 'Automated telecom-number reclamation',
-    metric: '₹22.8L avoided',
+    metric: '₹22.8L saved',
     problem:
       'The platform had accumulated 7,600+ idle DIDs (telecom numbers) — paid for but unused — while new campaigns kept procuring more.',
     approach:
@@ -171,7 +171,7 @@ export const achievements: readonly Achievement[] = [
     decision:
       'Made reclamation a scheduled, idempotent pipeline rather than a one-off script — so savings compound every month instead of decaying.',
     impact:
-      '₹22.8L in procurement avoided on the first run; 800+ DIDs/month reclaimed ongoing (₹2.4L/month).',
+      '₹22.8L in procurement saved on the first run; 800+ DIDs/month reclaimed ongoing (₹2.4L/month).',
     stack: ['Airflow', 'Python', 'PostgreSQL'],
   },
   {
