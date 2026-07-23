@@ -16,7 +16,7 @@ export function Decisions() {
         <SectionHeader
           index="06"
           label="Engineering Decisions"
-          title="The part most portfolios skip: the why."
+          title="The why — the part that's easy to leave out."
           description="Tools are commodities. Judgment isn't. Here's how I reason about the choices that shape a system — including the options I turned down."
         />
 
